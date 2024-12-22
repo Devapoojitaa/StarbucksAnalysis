@@ -36,7 +36,7 @@ WorkFlow:
       - Data type mismatches causing preprocessing errors.
    - Solution:
      ---------
-   Added a robust preprocessing pipeline to:
+      Added a robust preprocessing pipeline to:
       - Handle missing columns and provide default values.
       - Convert data types (e.g., latitude and longitude) to numeric.
       - Deduplicate and validate column names.
