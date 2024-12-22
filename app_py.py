@@ -4,14 +4,37 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
 
-# Load data
-menu = pd.read_csv("starbucks-menu-nutrition-drinks.csv")
-directory = pd.read_csv("directory.csv")
-portfolio = pd.read_csv("portfolio.csv")
+# Load and validate data
+try:
+    menu = pd.read_csv("starbucks-menu-nutrition-drinks.csv")
+    directory = pd.read_csv("directory.csv")
+    portfolio = pd.read_csv("portfolio.csv")
+except FileNotFoundError as e:
+    raise FileNotFoundError(f"Error: {e}. Ensure all files are correctly uploaded.") from e
+
+# Validate required columns in the datasets
+required_directory_columns = ['latitude', 'longitude']
+required_portfolio_columns = ['cluster', 'reward', 'difficulty', 'duration']
+required_menu_columns = ['Calories']
+
+for col in required_directory_columns:
+    if col not in directory.columns:
+        raise KeyError(f"Missing required column '{col}' in 'directory.csv'.")
+
+for col in required_portfolio_columns:
+    if col not in portfolio.columns:
+        raise KeyError(f"Missing required column '{col}' in 'portfolio.csv'.")
+
+for col in required_menu_columns:
+    if col not in menu.columns:
+        raise KeyError(f"Missing required column '{col}' in 'starbucks-menu-nutrition-drinks.csv'.")
 
 # Clean and preprocess data
+directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
+directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
 directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
 directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+
 menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
 
 # Initialize Dash app
