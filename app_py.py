@@ -3,81 +3,27 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
-import os
 
-
-def load_data(file_path, required_columns=None):
-    """
-    Load and validate CSV data.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Error: {file_path} not found. Please ensure the file is uploaded.")
-
-    try:
-        df = pd.read_csv(file_path)
-    except Exception as e:
-        raise ValueError(f"Error loading {file_path}: {e}")
-
-    # Validate required columns
-    if required_columns:
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            # Log missing columns and provide defaults
-            print(f"Warning: Missing columns {missing_columns} in {file_path}. Adding default values.")
-            for col in missing_columns:
-                if col in ['latitude', 'longitude']:
-                    df[col] = None  # Add column with NaN values
-                else:
-                    df[col] = ""
-
-    return df
-
-
-def preprocess_data():
-    """
-    Preprocess the datasets for cleaning and readiness.
-    """
-    global directory, menu, portfolio
-
-    # Preprocess 'directory' data
-    directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
-    directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
-    directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
-    directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
-
-    # Preprocess 'menu' data
-    menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
-
-
-# Load data
-menu = load_data(
-    "starbucks-menu-nutrition-drinks.csv",
-    required_columns=["Calories"]
-)
-directory = load_data(
-    "directory.csv",
-    required_columns=["latitude", "longitude"]
-)
-portfolio = load_data(
-    "portfolio.csv",
-    required_columns=["cluster", "reward", "difficulty", "duration"]
-)
+# Load Data
+directory = pd.read_csv("directory.csv")
+menu = pd.read_csv("starbucks-menu-nutrition-drinks.csv")
+portfolio = pd.read_csv("portfolio.csv")
 
 # Preprocess data
-preprocess_data()
+directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
+directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce')
+menu['Calories'].fillna(0, inplace=True)
 
-# Initialize Dash app
+# Initialize the app
 app = dash.Dash(__name__)
-server = app.server  # For deployment
 
-# App Layout
 app.layout = html.Div([
-    html.H1("Starbucks Dashboard", style={"textAlign": "center"}),
-
+    html.H1("Starbucks Dashboard", style={'text-align': 'center'}),
     dcc.Tabs([
         # Tab 1: Customer Segmentation
         dcc.Tab(label='Customer Segmentation', children=[
-            html.H2("Customer Segmentation Analysis", style={"textAlign": "center"}),
+            html.H2("Customer Segmentation Analysis"),
             dcc.Graph(id='segmentation-scatter'),
             html.P("Filter by Cluster:"),
             dcc.Dropdown(
@@ -89,7 +35,7 @@ app.layout = html.Div([
 
         # Tab 2: Menu Optimization
         dcc.Tab(label='Menu Optimization', children=[
-            html.H2("Menu Optimization Insights", style={"textAlign": "center"}),
+            html.H2("Menu Optimization Insights"),
             dcc.Graph(id='calorie-distribution'),
             html.P("Filter by Calorie Level:"),
             dcc.RangeSlider(
@@ -104,63 +50,53 @@ app.layout = html.Div([
 
         # Tab 3: Store Location Optimization
         dcc.Tab(label='Store Location Optimization', children=[
-            html.H2("Store Location Insights", style={"textAlign": "center"}),
-            html.Button("Update Heatmap", id="update-heatmap", n_clicks=0),
+            html.H2("Store Location Insights"),
+            html.Button("Update Heatmap", id="update-heatmap-btn"),
             dcc.Graph(id='location-heatmap'),
         ]),
     ])
 ])
 
 # Callbacks
-
-# Customer Segmentation Scatter Plot
 @app.callback(
     Output('segmentation-scatter', 'figure'),
     [Input('cluster-dropdown', 'value')]
 )
 def update_segmentation_scatter(selected_cluster):
     filtered_data = portfolio[portfolio['cluster'] == selected_cluster]
-    fig = px.scatter(
-        filtered_data, x='reward', y='difficulty', color='cluster', size='duration',
-        title="Customer Segmentation Scatter Plot"
-    )
+    fig = px.scatter(filtered_data, x='reward', y='difficulty', color='cluster', size='duration',
+                     title="Customer Segmentation Scatter Plot")
     return fig
 
-
-# Menu Optimization Calorie Distribution
 @app.callback(
     Output('calorie-distribution', 'figure'),
     [Input('calorie-slider', 'value')]
 )
 def update_calorie_distribution(calorie_range):
     filtered_data = menu[(menu['Calories'] >= calorie_range[0]) & (menu['Calories'] <= calorie_range[1])]
-    fig = px.histogram(
-        filtered_data, x='Calories', nbins=20, title="Calorie Distribution",
-        labels={'Calories': 'Calorie Levels'}
-    )
+    fig = px.histogram(filtered_data, x='Calories', nbins=20, title="Calorie Distribution")
     return fig
 
-
-# Store Location Heatmap
 @app.callback(
     Output('location-heatmap', 'figure'),
-    [Input('update-heatmap', 'n_clicks')]
+    Input('update-heatmap-btn', 'n_clicks'),
 )
 def update_location_heatmap(n_clicks):
+    """Callback to render a global heatmap."""
+    print("Heatmap callback triggered")
     fig = px.density_mapbox(
         directory,
         lat='latitude',
         lon='longitude',
         radius=10,
-        mapbox_style="stamen-terrain",
-        center={"lat": directory['latitude'].mean(), "lon": directory['longitude'].mean()},
-        zoom=2,
-        title="Store Location Heatmap"
+        mapbox_style="carto-positron",  # Use a clean map style
+        title="Store Location Heatmap",
+        center={"lat": 0, "lon": 0},  # Center at the equator
+        zoom=1.5,  # Zoom out for a global view
+        height=600,  # Adjust height for better visibility
     )
     return fig
 
-
 # Run the app
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))  # Default to 8050 if PORT is not set
-    app.run_server(host="0.0.0.0", port=port, debug=True)
+if __name__ == '__main__':
+    app.run_server(debug=True)
