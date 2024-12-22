@@ -47,6 +47,9 @@ def preprocess_data():
     if "Latitude" in directory.columns and "Longitude" in directory.columns:
         directory.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}, inplace=True)
 
+    # Deduplicate columns if necessary
+    directory = directory.loc[:, ~directory.columns.duplicated()]
+
     # Preprocess 'directory' data
     if 'latitude' in directory.columns and 'longitude' in directory.columns:
         directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
