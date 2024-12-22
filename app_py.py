@@ -5,11 +5,14 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# Load and validate data
+
 def load_data(file_path, required_columns=None):
+    """
+    Load and validate CSV data.
+    """
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Error: {file_path} not found. Please upload the file.")
-    
+        raise FileNotFoundError(f"Error: {file_path} not found. Please ensure the file is uploaded.")
+
     try:
         df = pd.read_csv(file_path)
     except Exception as e:
@@ -19,11 +22,34 @@ def load_data(file_path, required_columns=None):
     if required_columns:
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            raise KeyError(f"Missing required columns in {file_path}: {missing_columns}")
+            # Log missing columns and provide defaults
+            print(f"Warning: Missing columns {missing_columns} in {file_path}. Adding default values.")
+            for col in missing_columns:
+                if col in ['latitude', 'longitude']:
+                    df[col] = None  # Add column with NaN values
+                else:
+                    df[col] = ""
 
     return df
 
-# Load datasets with validation
+
+def preprocess_data():
+    """
+    Preprocess the datasets for cleaning and readiness.
+    """
+    global directory, menu, portfolio
+
+    # Preprocess 'directory' data
+    directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
+    directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
+    directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
+    directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+
+    # Preprocess 'menu' data
+    menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
+
+
+# Load data
 menu = load_data(
     "starbucks-menu-nutrition-drinks.csv",
     required_columns=["Calories"]
@@ -37,22 +63,12 @@ portfolio = load_data(
     required_columns=["cluster", "reward", "difficulty", "duration"]
 )
 
-# Preprocess and clean data
-def preprocess_data():
-    # Clean 'directory' dataset
-    directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
-    directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
-    directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
-    directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
-
-    # Clean 'menu' dataset
-    menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
-
+# Preprocess data
 preprocess_data()
 
 # Initialize Dash app
 app = dash.Dash(__name__)
-server = app.server  # For deployment platforms like Render or Heroku
+server = app.server  # For deployment
 
 # App Layout
 app.layout = html.Div([
@@ -110,6 +126,7 @@ def update_segmentation_scatter(selected_cluster):
     )
     return fig
 
+
 # Menu Optimization Calorie Distribution
 @app.callback(
     Output('calorie-distribution', 'figure'),
@@ -122,6 +139,7 @@ def update_calorie_distribution(calorie_range):
         labels={'Calories': 'Calorie Levels'}
     )
     return fig
+
 
 # Store Location Heatmap
 @app.callback(
@@ -140,6 +158,7 @@ def update_location_heatmap(n_clicks):
         title="Store Location Heatmap"
     )
     return fig
+
 
 # Run the app
 if __name__ == "__main__":
