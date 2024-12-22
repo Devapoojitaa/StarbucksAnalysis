@@ -3,42 +3,56 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
+import os
 
 # Load and validate data
-try:
-    menu = pd.read_csv("starbucks-menu-nutrition-drinks.csv")
-    directory = pd.read_csv("directory.csv")
-    portfolio = pd.read_csv("portfolio.csv")
-except FileNotFoundError as e:
-    raise FileNotFoundError(f"Error: {e}. Ensure all files are correctly uploaded.") from e
+def load_data(file_path, required_columns=None):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Error: {file_path} not found. Please upload the file.")
+    
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        raise ValueError(f"Error loading {file_path}: {e}")
 
-# Validate required columns in the datasets
-required_directory_columns = ['latitude', 'longitude']
-required_portfolio_columns = ['cluster', 'reward', 'difficulty', 'duration']
-required_menu_columns = ['Calories']
+    # Validate required columns
+    if required_columns:
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise KeyError(f"Missing required columns in {file_path}: {missing_columns}")
 
-for col in required_directory_columns:
-    if col not in directory.columns:
-        raise KeyError(f"Missing required column '{col}' in 'directory.csv'.")
+    return df
 
-for col in required_portfolio_columns:
-    if col not in portfolio.columns:
-        raise KeyError(f"Missing required column '{col}' in 'portfolio.csv'.")
+# Load datasets with validation
+menu = load_data(
+    "starbucks-menu-nutrition-drinks.csv",
+    required_columns=["Calories"]
+)
+directory = load_data(
+    "directory.csv",
+    required_columns=["latitude", "longitude"]
+)
+portfolio = load_data(
+    "portfolio.csv",
+    required_columns=["cluster", "reward", "difficulty", "duration"]
+)
 
-for col in required_menu_columns:
-    if col not in menu.columns:
-        raise KeyError(f"Missing required column '{col}' in 'starbucks-menu-nutrition-drinks.csv'.")
+# Preprocess and clean data
+def preprocess_data():
+    # Clean 'directory' dataset
+    directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
+    directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
+    directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
+    directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
 
-# Clean and preprocess data
-directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
-directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
-directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
-directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+    # Clean 'menu' dataset
+    menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
 
-menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
+preprocess_data()
 
 # Initialize Dash app
 app = dash.Dash(__name__)
+server = app.server  # For deployment platforms like Render or Heroku
 
 # App Layout
 app.layout = html.Div([
