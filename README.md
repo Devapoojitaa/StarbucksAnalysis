@@ -29,13 +29,13 @@ WorkFlow:
    - Filled missing values.
    - Ensured consistency in columns like latitude and longitude.
    - Prepped the data for visualizations.
-   Problems Faced :
-   ---------------
+   - Problems Faced :
+     ---------------
       - Missing columns in datasets (e.g., latitude and longitude).
       - Duplicate column names (Latitude vs latitude, etc.).
       - Data type mismatches causing preprocessing errors.
-   Solution:
-   ---------
+   - Solution:
+     ---------
    Added a robust preprocessing pipeline to:
       - Handle missing columns and provide default values.
       - Convert data types (e.g., latitude and longitude) to numeric.
