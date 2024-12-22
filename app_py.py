@@ -1,12 +1,15 @@
-import os
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
+import os
 
-# Function to load and validate data
+# Helper function to load and validate data
 def load_data(file_path, required_columns=None):
+    """
+    Load and validate CSV data with required columns.
+    """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Error: {file_path} not found. Please ensure the file is uploaded.")
 
@@ -15,42 +18,60 @@ def load_data(file_path, required_columns=None):
     except Exception as e:
         raise ValueError(f"Error loading {file_path}: {e}")
 
+    # Validate required columns
     if required_columns:
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             print(f"Warning: Missing columns {missing_columns} in {file_path}. Adding default values.")
             for col in missing_columns:
                 if col in ['latitude', 'longitude']:
-                    df[col] = None
+                    df[col] = None  # Add column with NaN values
                 else:
                     df[col] = ""
 
     return df
 
-# Function to preprocess the data
+# Preprocessing function
 def preprocess_data():
+    """
+    Preprocess datasets for cleaning and readiness.
+    """
     global directory, menu, portfolio
 
-    directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
-    directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
-    directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
-    directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+    # Debugging: Print column names
+    print("Directory Columns:", directory.columns)
+    print("Menu Columns:", menu.columns)
+    print("Portfolio Columns:", portfolio.columns)
 
-    menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
+    # Rename latitude/longitude columns if needed
+    if "Latitude" in directory.columns and "Longitude" in directory.columns:
+        directory.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}, inplace=True)
 
-# Load data
-menu = load_data(
-    "starbucks-menu-nutrition-drinks.csv",
-    required_columns=["Calories"]
-)
-directory = load_data(
-    "directory.csv",
-    required_columns=["latitude", "longitude"]
-)
-portfolio = load_data(
-    "portfolio.csv",
-    required_columns=["cluster", "reward", "difficulty", "duration"]
-)
+    # Preprocess 'directory' data
+    if 'latitude' in directory.columns and 'longitude' in directory.columns:
+        directory['latitude'] = pd.to_numeric(directory['latitude'], errors='coerce')
+        directory['longitude'] = pd.to_numeric(directory['longitude'], errors='coerce')
+        directory['latitude'].fillna(directory['latitude'].mean(), inplace=True)
+        directory['longitude'].fillna(directory['longitude'].mean(), inplace=True)
+    else:
+        raise KeyError("Columns 'latitude' and 'longitude' are missing in the directory DataFrame.")
+
+    # Preprocess 'menu' data
+    if "Calories" in menu.columns:
+        menu['Calories'] = pd.to_numeric(menu['Calories'], errors='coerce').fillna(0)
+    else:
+        raise KeyError("Column 'Calories' is missing in the menu DataFrame.")
+
+    # Ensure required columns exist in 'portfolio'
+    required_columns = ['cluster', 'reward', 'difficulty', 'duration']
+    missing_columns = [col for col in required_columns if col not in portfolio.columns]
+    if missing_columns:
+        raise KeyError(f"Missing required columns in portfolio.csv: {missing_columns}")
+
+# Load datasets
+menu = load_data("starbucks-menu-nutrition-drinks.csv", required_columns=["Calories"])
+directory = load_data("directory.csv", required_columns=["latitude", "longitude"])
+portfolio = load_data("portfolio.csv", required_columns=["cluster", "reward", "difficulty", "duration"])
 
 # Preprocess data
 preprocess_data()
@@ -101,8 +122,6 @@ app.layout = html.Div([
 ])
 
 # Callbacks
-
-# Customer Segmentation Scatter Plot
 @app.callback(
     Output('segmentation-scatter', 'figure'),
     [Input('cluster-dropdown', 'value')]
@@ -115,7 +134,6 @@ def update_segmentation_scatter(selected_cluster):
     )
     return fig
 
-# Menu Optimization Calorie Distribution
 @app.callback(
     Output('calorie-distribution', 'figure'),
     [Input('calorie-slider', 'value')]
@@ -128,7 +146,6 @@ def update_calorie_distribution(calorie_range):
     )
     return fig
 
-# Store Location Heatmap
 @app.callback(
     Output('location-heatmap', 'figure'),
     [Input('update-heatmap', 'n_clicks')]
@@ -139,7 +156,7 @@ def update_location_heatmap(n_clicks):
         lat='latitude',
         lon='longitude',
         radius=10,
-        mapbox_style="stamen-terrain",
+        mapbox_style="open-street-map",
         center={"lat": directory['latitude'].mean(), "lon": directory['longitude'].mean()},
         zoom=3,
         title="Store Location Heatmap"
@@ -148,5 +165,5 @@ def update_location_heatmap(n_clicks):
 
 # Run the app
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))
+    port = int(os.environ.get("PORT", 8050))  # Default to 8050 if PORT is not set
     app.run_server(host="0.0.0.0", port=port, debug=True)
