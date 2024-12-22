@@ -92,7 +92,7 @@ def update_location_heatmap(n_clicks):
         mapbox_style="carto-positron",  # Use a clean map style
         title="Store Location Heatmap",
         center={"lat": 0, "lon": 0},  # Center at the equator
-        zoom=1.5,  # Zoom out for a global view
+        zoom=3,  # Zoom out for a global view
         height=600,  # Adjust height for better visibility
     )
     return fig
