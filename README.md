@@ -20,3 +20,4 @@ Tools Used:
 4. Render: For deployment to make the dashboard accessible online.
 
    Live: https://starbucksanalysis-9.onrender.com 
+[Starbucks Analytics Dashboard] (https://starbucks-dashboard.onrender.com) 
